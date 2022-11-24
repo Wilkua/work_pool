@@ -1,0 +1,8 @@
+[package]
+name = "work_pool"
+version = "0.1.0"
+description = "A simple implementation of a work queue wrapped by a thread pool."
+authors = ["William Drescher <wilkua2@gmail.com>"]
+edition = "2021"
+
+[dependencies]
