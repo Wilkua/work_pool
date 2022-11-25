@@ -3,21 +3,22 @@ use std::thread::{self, JoinHandle};
 mod work_queue;
 use work_queue::WorkQueue;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum Work<T> {
     Job(T),
     Quit,
 }
 
+#[derive(Debug)]
 pub struct WorkPool<T> {
     queue: WorkQueue<Work<T>>,
     threads: Vec<JoinHandle<()>>,
 }
 
-impl<T: Clone + Send + std::fmt::Debug> WorkPool<T> {
+impl<T: Clone + Send> WorkPool<T> {
     /// Create a new WorkPool
-    pub fn new(num_threads: usize) -> Result<WorkPool<T>, ()> {
-        let queue = WorkQueue::new(64);
+    pub fn new(num_threads: usize, buf_len: Option<usize>) -> Result<WorkPool<T>, ()> {
+        let queue = WorkQueue::new(buf_len.unwrap_or(64usize));
 
         let num_threads = if num_threads == 0 {
             usize::from(std::thread::available_parallelism().unwrap())
@@ -46,24 +47,38 @@ impl<T: Clone + Send + std::fmt::Debug> WorkPool<T> {
     }
 
     /// Setup the job executor function and start threads
-    pub fn set_executor_and_start<F>(&mut self, _executor: F)
+    pub fn set_executor_and_start<F>(&mut self, executor: F)
     where
-        F: FnOnce(T) + Send + 'static,
+        F: FnOnce(T) + Copy + Send + 'static,
         T: Send + 'static
     {
         for _ in 0..self.threads.capacity() {
-            let mut queue = self.queue.clone();
+            let queue = self.queue.clone();
             self.threads.push(thread::spawn(move || {
-                // Implement work stealing queue
                 // steal work -> Pass to executor
                 // Executor should accept parameter of type T
-                loop {
-                    match queue.find_work() {
-                        Work::Job(w) => println!("thrad {:?} got {:?}", std::thread::current().id(), w),
+                for work in queue {
+                    match work {
+                        Work::Job(w) => executor(w),
                         Work::Quit => break,
                     }
                 }
             }));
+        }
+    }
+
+    /// Send a quit message to all threads and wait for them to join.
+    pub fn close(&mut self) {
+        let mut quits = Vec::with_capacity(self.threads.len());
+        for _ in 0..self.threads.len() {
+            quits.push(Work::Quit);
+        }
+
+        self.queue.dispatch_many(quits);
+
+        for _ in 0..self.threads.len() {
+            let thread = self.threads.pop().unwrap();
+            let _ = thread.join();
         }
     }
 }
@@ -78,13 +93,13 @@ impl<T> Drop for WorkPool<T> {
     }
 }
 
-/* #[cfg(test)]
+#[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn should_create_pool() {
-        let pool: WorkPool<u8> = WorkPool::new(8).unwrap();
+        let pool: WorkPool<()> = WorkPool::new(8, None).unwrap();
         assert_eq!(pool.threads.capacity(), 8);
     }
-} */
+}

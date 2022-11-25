@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, Condvar, Mutex},
     };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WorkQueue<T> {
     queue: Arc<Mutex<VecDeque<T>>>,
     queue_cv: Arc<Condvar>,
@@ -35,6 +35,7 @@ impl<T> WorkQueue<T> {
 
     pub fn dispatch_many(&mut self, work: Vec<T>) {
         let mut queue = self.queue.lock().unwrap();
+        queue.reserve(work.len());
         queue.append(&mut VecDeque::from(work));
         drop(queue);
 
@@ -43,13 +44,21 @@ impl<T> WorkQueue<T> {
 
     pub fn find_work(&mut self) -> T {
         let mut queue = self.queue_cv.wait_while(self.queue.lock().unwrap(),
-            |queue: &mut VecDeque<T>| { queue.len() > 0 }).unwrap();
+        |q: &mut VecDeque<T>| { q.len() == 0 }).unwrap();
 
         // We unwrap here because we guarantee at least one work item with the CV
         let work = queue.pop_front().unwrap();
         drop(queue);
 
         work
+    }
+}
+
+impl<T> Iterator for WorkQueue<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.find_work())
     }
 }
 
@@ -76,7 +85,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // This one doesn't work :/
     fn should_retrieve_work() -> std::thread::Result<()> {
         let mut wq = WorkQueue::new(1);
         let mut wqc = wq.clone();
