@@ -8,10 +8,17 @@ pool with a work queue backing for quick projects.
 # Example
 
 ```rust
-fn main() {
-    let mut pool = WorkPool::new();
+use std::sync::Arc;
+use work_pool::WorkPool;
 
-    pool.set_executor(|work| {
+fn main() {
+    // Specify number of threads and work queue capacity
+    // Work queue capacity is workload based, but a good
+    // estimate might be 2 or 4 times the number of threads
+    let mut pool = WorkPool::new(8, 64);
+
+    // Set the executor function and star tthe work listener
+    pool.set_executor_and_start(|work| {
         // Work is the data sent by `dispatch`
     });
 
@@ -19,7 +26,7 @@ fn main() {
         // do something, like get a TcpStream
         let stream = accept_next_connection();
         match stream {
-            Some(Ok(s)) => pool.dispatch(s),
+            Some(Ok(s)) => pool.dispatch(Arc::new(s)),
             Some(Err(e)) => panic!(e),
             None => break,
         }
