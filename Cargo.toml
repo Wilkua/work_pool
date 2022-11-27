@@ -1,6 +1,6 @@
 [package]
 name = "work_pool"
-version = "0.1.0"
+version = "0.1.1"
 description = "A simple implementation of a work queue wrapped by a thread pool."
 keywords = ["work_queue", "thread_pool", "multithreading", "multithreaded"]
 categories = ["concurrency"]
