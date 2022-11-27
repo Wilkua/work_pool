@@ -2,7 +2,7 @@
 name = "work_pool"
 version = "0.1.0"
 description = "A simple implementation of a work queue wrapped by a thread pool."
-keywords = ["work queue", "thread pool", "work pool", "multithreading", "multithreaded", "concurrency"]
+keywords = ["work_queue", "thread_pool", "work_pool", "multithreading", "multithreaded", "concurrency"]
 categories = ["concurrency"]
 authors = ["William Drescher <wilkua2@gmail.com>"]
 repository = "https://github.com/wilkua/work_pool/"
